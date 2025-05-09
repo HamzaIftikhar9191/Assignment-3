@@ -1,70 +1,62 @@
-import { useRouter } from "next/router";
-import path from "path";
-import fs from "fs";
+import { useRouter } from 'next/router';
 
 export default function Home({ trendingMovies }) {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-100 p-6">
-      <div className="max-w-5xl mx-auto">
-        <header className="text-center mb-10">
-          <h1 className="text-5xl font-extrabold text-green-800 drop-shadow-sm mb-2">
-            🎬 Movie House
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Explore trending movies handpicked for you
-          </p>
-        </header>
+    <div className="p-8 bg-gray-100 min-h-screen">
+      <h1 className="text-4xl font-bold text-center text-purple-700 mb-6">Movie House</h1>
+      <h2 className="text-2xl font-semibold text-gray-700 mb-4">Trending Movies</h2>
+      
+      <ul className="space-y-4">
+        {trendingMovies.map(movie => (
+          <li key={movie._id} className="bg-white text-black shadow p-4 rounded-lg hover:bg-blue-50 transition">
+            <p className="text-lg font-medium">
+              🎞 <strong>{movie.title}</strong> ({movie.releaseYear})
+            </p>
+            <p className="text-sm text-gray-600">⭐ Rating: {movie.rating}</p>
+          </li>
+        ))}
+      </ul>
 
-        <section>
-          <h2 className="text-3xl font-semibold text-gray-800 mb-6">
-            🔥 Trending Now
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {trendingMovies.map((movie) => (
-              <div
-                key={movie.id}
-                className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition duration-300 transform hover:-translate-y-1"
-              >
-                <h3 className="text-xl font-bold text-green-700">
-                  {movie.title}
-                </h3>
-                <p className="text-gray-500 mt-1">
-                  📅 Release Year: <strong>{movie.releaseYear}</strong>
-                </p>
-                <p className="text-yellow-600 mt-1">
-                  ⭐ Rating: <strong>{movie.rating}</strong>
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="text-center mt-12">
-          <button
-            onClick={() => router.push("/genres")}
-            className="inline-block bg-green-600 hover:bg-green-700 text-white text-lg font-semibold px-8 py-3 rounded-full transition duration-300"
-          >
-            Browse Genres
-          </button>
-        </div>
+      <div className="text-center mt-8">
+        <button
+          onClick={() => router.push('/genres')}
+          className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-6 py-2 rounded-full transition"
+        >
+          Browse Genres
+        </button>
       </div>
     </div>
   );
 }
 
 export async function getStaticProps() {
-  const filePath = path.join(process.cwd(), "data", "movies.json");
-  const jsonData = fs.readFileSync(filePath, "utf-8");
-  const data = JSON.parse(jsonData);
+  try {
+    // Fetch movies from the API
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/movies`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch movies');
+    }
+    
+    const data = await response.json();
+    
+    // Sort the movies based on the rating
+    const trendingMovies = data
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 6);
 
-  const trendingMovies = data.movies
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, 6);
-
-  return {
-    props: { trendingMovies },
-    revalidate: 60,
-  };
+    return {
+      props: { trendingMovies },
+      revalidate: 60, // Revalidate every 60 seconds
+    };
+  } catch (err) {
+    console.error('Error fetching trending movies:', err);
+    return {
+      props: {
+        trendingMovies: [], // Return empty array if error occurs
+      },
+    };
+  }
 }
